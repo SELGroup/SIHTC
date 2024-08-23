@@ -1,2 +1,2 @@
 # SISHTC
-code of SISHTC
+The code for SISHTC
