@@ -12,6 +12,7 @@ from tqdm import tqdm
 import argparse
 import wandb
 import yaml
+import time 
 
 from eval import evaluate
 
@@ -89,15 +90,15 @@ def get_exponential_with_warmup_scheduler(optimizer, warmup_steps, total_steps, 
             return gamma ** decay_steps
     return LambdaLR(optimizer, lr_lambda)
 
-def train():
+if __name__ == '__main__':
     parser = parse()
     args = parser.parse_args()
     if args.wandb:
         # wandb.init(config=args, project=str(args.batch) +'_'+ args.data + '_' + 'SIDHTC', name=args.name)
-        wandb.init(project=str(args.batch) +'_'+ args.data + '_' + 'SIDHTC', name=args.name)
-        args.seloss_wight = wandb.config.seloss_wight
-        args.label_loss_wight = wandb.config.label_loss_wight
-        args.hie_label_loss_wight = wandb.config.hie_label_loss_wight
+        wandb.init(project=str(args.batch) +'_'+ args.data + '_' + 'SISHTC', name=args.name)
+        # args.seloss_wight = wandb.config.seloss_wight
+        # args.label_loss_wight = wandb.config.label_loss_wight
+        # args.hie_label_loss_wight = wandb.config.hie_label_loss_wight
     print(args)
     utils.seed_torch(args.seed)
 
@@ -237,6 +238,15 @@ def train():
     loss_total = 0
     if not os.path.exists(os.path.join('checkpoints', args.name)):
         os.mkdir(os.path.join('checkpoints', args.name))
+    
+    # 计算参数量
+    def numParams(net):
+        num = 0
+        for param in net.parameters():
+            if param.requires_grad:
+                num += int(np.prod(param.size()))
+        return num
+    print("numParams:", numParams(model))
 
     for epoch in range(args.epoch):
 
@@ -248,7 +258,8 @@ def train():
         #     with open('0.0005gl_lrexp_epoch50_agg_32_5_nytseloss.txt', 'a') as f:
         #         f.write(f"Early stop!\n")
         #     # break
-
+        start_time = time.time()
+        print("start_time:", start_time)
         model.train()
         with tqdm(train) as p_bar:
             for batch in p_bar: # batch包含'input_ids''attention_mask''labels'
@@ -257,7 +268,7 @@ def train():
 
                 # 获取self.weight()的值
                 graph_embedding_layer = model.get_input_embeddings()  # 获取GraphEmbedding对象
-                label_weight_function = graph_embedding_layer.weight()[-num_class - len(depth2label) - 1:-3]
+                label_weight_function = graph_embedding_layer.weight()[-num_class - len(depth2label) - 1: -len(depth2label)-1]
 
                 global_label_loss = global_singular_smoothing_loss(label_weight_function)
                 local_label_loss = local_singular_smoothing_loss(label_weight_function, depth2label, num_class)
@@ -284,7 +295,10 @@ def train():
                     loss = 0
                     update_step = 0
                     # torch.cuda.empty_cache()
-
+        end_time = time.time()
+        print("end_time:", end_time)
+        elapsed_train_time = end_time - start_time
+        print(f"epoch train time:{elapsed_train_time}s")
         # # 保存 loss 值到文件中
         # with open('0.0005gl_lrexp_epoch50_agg_32_5_nytseloss.txt', 'a') as f:
         #     # for loss in loss_values:
@@ -297,6 +311,8 @@ def train():
         pred = []
         gold = []
         with torch.no_grad(), tqdm(dev) as pbar:
+            start_time = time.time()
+            print("start_time:", start_time)
             for batch in pbar:
                 batch = {k: v.to('cuda') if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
                 output_ids, logits = model.generate(batch['input_ids'], depth2label=depth2label, ) # output_ids是每个batch预测得到的标签，logits(8,2,141)
@@ -308,7 +324,10 @@ def train():
                         for i, l in enumerate(ll):
                             if l == 1:
                                 gold[-1].append(i)
-
+            end_time = time.time()
+            print("end_time:", end_time)
+            elapsed_eval_time = end_time - start_time
+            print(f"epoch eval time:{elapsed_eval_time}s")
             # 获取self.weight()的值
             graph_embedding_layer = model.get_input_embeddings()  # 获取GraphEmbedding对象
             label_weight_function = graph_embedding_layer.weight()[-num_class - len(depth2label) - 1:-1]
@@ -395,6 +414,8 @@ def train():
         macro_f1 = scores['macro_f1']
         micro_f1 = scores['micro_f1']
         print('macro', macro_f1, 'micro', micro_f1)
+        print("---------------------")
+        print(scores['full'])
 
         # with open('0.0005gl_lrexp_epoch50_agg_32_5_nytseloss.txt', 'a') as f:
         #     f.write(f"TEST macro: {macro_f1}, micro:{micro_f1}\n")
@@ -407,19 +428,19 @@ def train():
 
 
     test_function('_macro')
-    # test_function('_micro')
+    test_function('_micro')
 
     wandb.finish()
 
-if __name__ == '__main__':
-    parser = parse()
-    args = parser.parse_args()
-    with open('sweep_config.yaml') as file:
-        sweep_config = yaml.safe_load(file)
-    # 创建 Sweep
-    # sweep_id = wandb.sweep(sweep_config, project=str(args.batch) +'_'+ args.data + '_' + 'SIDHTC')
-    # print("Sweep ID:", sweep_id)
-    # 运行 sweep
+# if __name__ == '__main__':
+#     parser = parse()
+#     args = parser.parse_args()
+#     with open('sweep_config.yaml') as file:
+#         sweep_config = yaml.safe_load(file)
+#     # 创建 Sweep
+#     # sweep_id = wandb.sweep(sweep_config, project=str(args.batch) +'_'+ args.data + '_' + 'SIDHTC')
+#     # print("Sweep ID:", sweep_id)
+#     # 运行 sweep
 
-    sweep_id = 'sia4vghk'
-    wandb.agent(sweep_id, project='32_nyt_SIDHTC', function=train)
+#     sweep_id = 'sia4vghk'
+#     wandb.agent(sweep_id, project='32_nyt_SIDHTC', function=train)

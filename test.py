@@ -17,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('--extra', type=str, default='_macro')
     args = parser.parse_args()
 
-    checkpoint = torch.load(os.path.join('checkpoints', args.name, 'checkpoint{}.pt'.format(args.extra)),
+    checkpoint = torch.load(os.path.join('/home/liuqt/HPT/checkpoints', args.name, 'checkpoint_best{}.pt'.format(args.extra)),
                             map_location='cpu')
     batch_size = args.batch
     data_path = args.data
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError
 
-    checkpoint = torch.load(os.path.join('checkpoints', args.name, 'checkpoint{}.pt'.format(extra)),
+    checkpoint = torch.load(os.path.join('/home/liuqt/HPT/checkpoints', args.name, 'checkpoint_best{}.pt'.format(extra)),
                             map_location='cpu')
     model = Prompt.from_pretrained(args.arch, num_labels=len(label_dict), path_list=path_list, layer=args.layer,
                                    graph_type=args.graph, data_path=data_path, depth2label=depth2label, )
@@ -169,6 +169,8 @@ if __name__ == '__main__':
     macro_f1 = scores['macro_f1']
     micro_f1 = scores['micro_f1']
     print('macro', macro_f1, 'micro', micro_f1)
+    print("---------------------")
+    print(scores['full'])
 
     # 获取self.weight()的值
     graph_embedding_layer = model.get_input_embeddings()  # 获取GraphEmbedding对象
@@ -179,7 +181,7 @@ if __name__ == '__main__':
     _, label_s, _ = torch.svd(label_weight_function)
     label_s = label_s.cpu().data.numpy()
     label_s = label_s / np.max(label_s)
-    print('label singular values trend seed3 loss0.00008: ', np.sum(label_s))
+    print('label singular values trend: ', np.sum(label_s))
     print(label_s.tolist())
 
     # 输出嵌入矩阵的值
