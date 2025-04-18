@@ -149,21 +149,6 @@ if __name__ == '__main__':
                         if l == 1:
                             gold[-1].append(i)
 
-            # # 获取self.weight()的值
-            # graph_embedding_layer = model.get_input_embeddings()  # 获取GraphEmbedding对象
-            # label_weight_function = graph_embedding_layer.weight()[-num_class-len(depth2label)-1:-1]
-            # label_d_loss = -torch.norm(label_weight_function, p='nuc') / torch.sum(
-            #     torch.norm(label_weight_function, dim=1))
-            # print('label singular loss: ', label_d_loss)
-            # _, label_s, _ = torch.svd(label_weight_function)
-            # label_s = label_s.cpu().data.numpy()
-            # label_s = label_s / np.max(label_s)
-            # print('label singular values trend seed3 loss0.00008: ', np.sum(label_s))
-            # print(label_s.tolist())
-            #
-            # # 输出嵌入矩阵的值
-            # print(label_weight_function)
-
     print('path acc', father_count / (father_false + father_count))
     scores = evaluate(pred, gold, label_dict)
     macro_f1 = scores['macro_f1']
@@ -171,18 +156,3 @@ if __name__ == '__main__':
     print('macro', macro_f1, 'micro', micro_f1)
     print("---------------------")
     print(scores['full'])
-
-    # 获取self.weight()的值
-    graph_embedding_layer = model.get_input_embeddings()  # 获取GraphEmbedding对象
-    label_weight_function = graph_embedding_layer.weight()[-num_class - len(depth2label) - 1:-1]
-    label_d_loss = -torch.norm(label_weight_function, p='nuc') / torch.sum(
-        torch.norm(label_weight_function, dim=1))
-    print('label singular loss: ', label_d_loss)
-    _, label_s, _ = torch.svd(label_weight_function)
-    label_s = label_s.cpu().data.numpy()
-    label_s = label_s / np.max(label_s)
-    print('label singular values trend: ', np.sum(label_s))
-    print(label_s.tolist())
-
-    # 输出嵌入矩阵的值
-    print(label_weight_function)
